@@ -80,8 +80,21 @@ function findDiagnostic(diagnostics: DecorationSet, diagnostic: Diagnostic | nul
   return found
 }
 
-function maybeEnableLint(state: EditorState, effects: readonly StateEffect<unknown>[]) {
-  return state.field(lintState, false) ? effects : effects.concat(StateEffect.appendConfig.of([
+interface LintConfig {
+  tooltips: boolean
+}
+
+const defaultLintConfig: LintConfig = {
+  tooltips: true
+}
+
+export function lint(config: Partial<LintConfig> = {}) {
+  const mergedConfig = {
+    ...defaultLintConfig,
+    ...config
+  }
+
+  const extensions = [
     lintState,
     EditorView.decorations.compute([lintState], state => {
       let {selected, panel} = state.field(lintState)
@@ -89,9 +102,16 @@ function maybeEnableLint(state: EditorState, effects: readonly StateEffect<unkno
         activeMark.range(selected.from, selected.to)
       ])
     }),
-    hoverTooltip(lintTooltip),
     baseTheme
-  ]))
+  ]
+
+  mergedConfig.tooltips && extensions.push(hoverTooltip(lintTooltip))
+
+  return StateEffect.appendConfig.of(extensions)
+}
+
+function maybeEnableLint(state: EditorState, effects: readonly StateEffect<unknown>[]) {
+  return state.field(lintState, false) ? effects : effects.concat(lint())
 }
 
 /// Returns a transaction spec which updates the current set of
